@@ -57,6 +57,7 @@ class LLM:
     api_key: str
     model: str | None = None
     calls: int = 0
+    _lock: object = field(default_factory=__import__("threading").Lock, repr=False)
     total_tokens: int = 0
     _client: object = field(default=None, repr=False)
 
@@ -68,7 +69,7 @@ class LLM:
         self.model = self.model or self._fallbacks.pop(0)
         from openai import OpenAI
 
-        self._client = OpenAI(api_key=self.api_key, base_url=cfg["base_url"], timeout=90, max_retries=2)
+        self._client = OpenAI(api_key=self.api_key, base_url=cfg["base_url"], timeout=40, max_retries=1)
 
     @property
     def label(self) -> str:
@@ -76,9 +77,10 @@ class LLM:
 
     def chat(self, system: str, user: str, temperature: float = 0.3) -> str:
         while True:
+            model = self.model
             try:
                 resp = self._client.chat.completions.create(
-                    model=self.model,
+                    model=model,
                     messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
                     temperature=temperature,
                 )
@@ -89,12 +91,17 @@ class LLM:
                            or "decommissioned" in msg or "model_not_found" in msg)
                 # The OpenAI SDK has already retried 5xx/429 twice with backoff at this point.
                 busy = any(k in msg for k in ("503", "502", "500", "504", "unavailable", "overloaded",
-                                              "high demand", "429", "resource_exhausted"))
-                if (retired or busy) and self._fallbacks:
-                    self.model = self._fallbacks.pop(0)  # retired or overloaded model: try the next one
-                    continue
+                                              "high demand", "429", "resource_exhausted",
+                                              "timed out", "timeout"))
+                with self._lock:  # agents may run in parallel threads
+                    if self.model != model and (retired or busy):
+                        continue  # another thread already switched models
+                    if (retired or busy) and self._fallbacks:
+                        self.model = self._fallbacks.pop(0)  # retired or overloaded model: try the next one
+                        continue
                 self._raise(e)
-        self.calls += 1
+        with self._lock:
+            self.calls += 1
         usage = getattr(resp, "usage", None)
         if usage is not None and getattr(usage, "total_tokens", None):
             self.total_tokens += usage.total_tokens

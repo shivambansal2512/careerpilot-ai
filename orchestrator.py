@@ -3,13 +3,14 @@
 Flow for a new analysis:
     Profile Analyzer -> Job-Market Agent -> Skill-Gap Agent
         -> (readiness >= 85?) skip roadmap, go to interview-first mode
-        -> Roadmap Agent -> Project Agent -> Interview Coach
+        -> Roadmap Agent | Project Agent | Interview Coach   (run in parallel)
 
 Flow when the student reports progress (closed feedback loop):
     Progress Agent -> (replan?) Skill-Gap Agent -> Roadmap Agent
 """
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from typing import Callable
 
 from agents import (InterviewCoachAgent, JobMarketAgent, ProfileAnalyzerAgent, ProgressAgent,
@@ -49,6 +50,9 @@ class Orchestrator:
         on_step(self.gap.name)
         gap = self.gap.run(state)
 
+        # Roadmap, Project and Interview agents all depend only on the gap analysis,
+        # so they run in parallel to cut waiting time.
+        parallel = [self.projects, self.coach]
         if gap["readiness"] >= INTERVIEW_FIRST_THRESHOLD:
             self._decide(state, f"Readiness {gap['readiness']} ≥ {INTERVIEW_FIRST_THRESHOLD}: skip the learning "
                                 "roadmap and go straight to projects and interview practice.")
@@ -56,13 +60,13 @@ class Orchestrator:
         else:
             self._decide(state, f"Readiness {gap['readiness']} < {INTERVIEW_FIRST_THRESHOLD}: build a learning roadmap "
                                 f"for {len(gap['gaps'])} open gaps.")
-            on_step(self.roadmap.name)
-            self.roadmap.run(state)
+            parallel.insert(0, self.roadmap)
 
-        on_step(self.projects.name)
-        self.projects.run(state)
-        on_step(self.coach.name)
-        self.coach.run(state)
+        on_step(" + ".join(a.name for a in parallel) + " (in parallel)")
+        with ThreadPoolExecutor(max_workers=len(parallel)) as pool:
+            futures = [pool.submit(agent.run, state) for agent in parallel]
+            for f in futures:
+                f.result()  # re-raise the first agent error, if any
         return state
 
     def answer_question(self, state: dict, qid: str, answer: str) -> dict:
