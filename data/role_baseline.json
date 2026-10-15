@@ -1,0 +1,34 @@
+{
+  "_note": "Curated baseline used to ground the Job-Market Agent when live postings are unavailable. Importance = rough share of entry-level job descriptions mentioning the skill (sampled manually, India, 2026).",
+  "Software Engineer (Backend)": {
+    "DSA": 92, "SQL": 71, "REST APIs": 69, "Git": 66, "Java / Python / Node.js": 64,
+    "OOP & Design Patterns": 58, "DBMS": 52, "Spring Boot / Django / Express": 47,
+    "Operating Systems": 44, "Docker": 41, "Computer Networks": 38,
+    "System Design Basics": 36, "Cloud (AWS/Azure/GCP)": 33, "Unit Testing": 29
+  },
+  "Frontend Developer": {
+    "JavaScript": 88, "CSS": 80, "HTML": 78, "React": 72, "Git": 62, "REST APIs": 55,
+    "TypeScript": 49, "DSA": 48, "Next.js": 34, "Unit Testing": 31,
+    "Web Performance": 28, "Accessibility": 26
+  },
+  "Data Analyst": {
+    "SQL": 90, "Excel": 76, "Python": 64, "Data Cleaning": 61, "Statistics": 58,
+    "Data Visualization": 57, "Power BI": 52, "Business Communication": 46,
+    "Tableau": 37, "A/B Testing": 24
+  },
+  "ML Engineer": {
+    "Python": 90, "Machine Learning": 84, "Deep Learning": 61, "scikit-learn": 57,
+    "Statistics": 55, "Git": 52, "PyTorch / TensorFlow": 48, "SQL": 46,
+    "Linear Algebra": 42, "LLMs & RAG": 39, "Docker": 35, "MLOps": 33
+  },
+  "Cloud / DevOps Engineer": {
+    "Linux": 82, "Cloud (AWS/Azure/GCP)": 74, "Docker": 70, "CI/CD": 63, "Git": 60,
+    "Kubernetes": 54, "Computer Networks": 49, "Terraform": 41, "Python": 38,
+    "Monitoring": 34
+  },
+  "Full Stack Developer": {
+    "JavaScript": 86, "React": 70, "Node.js / Express": 64, "SQL": 60, "HTML & CSS": 72,
+    "REST APIs": 66, "Git": 63, "MongoDB": 45, "DSA": 50, "TypeScript": 42,
+    "Docker": 32, "Cloud (AWS/Azure/GCP)": 30
+  }
+}
