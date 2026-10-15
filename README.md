@@ -4,7 +4,7 @@ A multi-agent AI career mentor that closes the skill–job gap for engineering s
 Built for the **IBM SkillsBuild – AICTE Machine Learning & Applied AI Internship 2026**.
 Theme: **UN SDG 8 – Decent Work & Economic Growth** (problem: skill–job mismatch).
 
-**Live app:** https://YOUR-APP.streamlit.app
+**Live app:** https://careerpilot-ai-agents.streamlit.app/
 
 ## What it does
 
