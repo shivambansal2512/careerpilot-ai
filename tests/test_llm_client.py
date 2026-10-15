@@ -56,3 +56,30 @@ def test_bad_key_message(server):
     c = llm_mod.LLM(provider="fake", api_key="bad", model="good-model")
     with pytest.raises(llm_mod.LLMError, match="API key was rejected"):
         c.chat("s", "u")
+
+
+class Busy(Fake):
+    def do_POST(self):
+        body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        SEEN.append(body["model"])
+        if body["model"] == "busy-model":
+            self.send_response(503); self.send_header("Content-Type", "application/json"); self.end_headers()
+            self.wfile.write(b'{"error":{"code":503,"message":"This model is currently experiencing high demand.","status":"UNAVAILABLE"}}')
+            return
+        content = '{"ok": true}'
+        resp = {"id": "x", "object": "chat.completion", "created": 0, "model": body["model"],
+                "choices": [{"index": 0, "finish_reason": "stop", "message": {"role": "assistant", "content": content}}]}
+        self.send_response(200); self.send_header("Content-Type", "application/json"); self.end_headers()
+        self.wfile.write(json.dumps(resp).encode())
+
+
+def test_overloaded_model_falls_back():
+    srv = HTTPServer(("127.0.0.1", 0), Busy)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    llm_mod.PROVIDERS["busy"] = {"base_url": f"http://127.0.0.1:{srv.server_port}/v1", "label": "Busy",
+                                 "key_name": "X", "models": ["busy-model", "spare-model"]}
+    c = llm_mod.LLM(provider="busy", api_key="ok")
+    c._client = c._client.with_options(max_retries=0)
+    assert c.json("s", "u") == {"ok": True}
+    assert c.model == "spare-model"
+    srv.shutdown()

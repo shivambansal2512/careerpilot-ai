@@ -26,8 +26,10 @@ def run():
 
 def test_full_pipeline_runs_every_agent():
     orch, state, steps, llm = run()
-    assert steps == ["Profile Analyzer", "Job-Market Agent", "Skill-Gap Agent", "Roadmap Agent",
-                     "Project Agent", "Interview Coach"]
+    assert steps == ["Profile Analyzer", "Job-Market Agent", "Skill-Gap Agent",
+                     "Roadmap Agent + Project Agent + Interview Coach (in parallel)"]
+    ran = {t["agent"] for t in state["trace"]}
+    assert {"Roadmap Agent", "Project Agent", "Interview Coach"} <= ran
     assert llm.calls == 6
     assert 0 <= state["gap"]["readiness"] <= 100
     assert state["roadmap"]["weeks"] and len(state["projects"]["projects"]) == 3
@@ -73,7 +75,7 @@ def test_high_readiness_skips_roadmap():
     steps = []
     orch.run_analysis(state, steps.append)
     assert state["gap"]["readiness"] >= 85
-    assert "Roadmap Agent" not in steps and state["roadmap"]["weeks"] == []
+    assert not any("Roadmap" in s for s in steps) and state["roadmap"]["weeks"] == []
 
 
 def test_invalid_json_is_retried():
