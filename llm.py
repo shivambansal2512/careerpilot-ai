@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 PROVIDERS = {
     "gemini": {
         "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
-        "models": ["gemini-3.8-flash", "gemini-2.5-flash", "gemini-3.5-flash"],
+        "models": ["gemini-2.5-flash", "gemini-3.8-flash", "gemini-3.5-flash"],
         "key_name": "GEMINI_API_KEY",
         "label": "Google Gemini",
     },
@@ -87,8 +87,11 @@ class LLM:
                 msg = str(e).lower()
                 retired = ("404" in msg or "not found" in msg or "does not exist" in msg
                            or "decommissioned" in msg or "model_not_found" in msg)
-                if retired and self._fallbacks:
-                    self.model = self._fallbacks.pop(0)  # model retired/renamed: try the next one
+                # The OpenAI SDK has already retried 5xx/429 twice with backoff at this point.
+                busy = any(k in msg for k in ("503", "502", "500", "504", "unavailable", "overloaded",
+                                              "high demand", "429", "resource_exhausted"))
+                if (retired or busy) and self._fallbacks:
+                    self.model = self._fallbacks.pop(0)  # retired or overloaded model: try the next one
                     continue
                 self._raise(e)
         self.calls += 1
@@ -104,6 +107,9 @@ class LLM:
             raise LLMError("The API key was rejected. Check that it is correct and active.") from e
         if "429" in msg or "RESOURCE_EXHAUSTED" in msg or "rate" in msg.lower():
             raise LLMError("The LLM rate limit was hit. Wait a minute and try again.") from e
+        if "503" in msg or "UNAVAILABLE" in msg or "high demand" in msg:
+            raise LLMError("The AI model is overloaded right now (Google-side, temporary). "
+                           "Wait a minute and press Run again.") from e
         raise LLMError(f"LLM request failed: {msg[:300]}") from e
 
     def json(self, system: str, user: str, temperature: float = 0.3, required: tuple = ()):

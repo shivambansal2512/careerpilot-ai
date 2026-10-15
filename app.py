@@ -102,12 +102,16 @@ if submitted:
                 raise ValueError("Upload a resume or type your skills first.")
             orch = Orchestrator(llm, adz_id, adz_key)
             state = Orchestrator.new_state(inputs, keep=ss.get("state"))
-            with st.status("Agents are working…", expanded=True) as status:
-                def on_step(agent_name):
-                    status.update(label=f"{agent_name} is working…")
-                    status.write(f"▶ {agent_name}")
+            status = st.status("Agents are working…", expanded=True)
+            def on_step(agent_name):
+                status.update(label=f"{agent_name} is working…")
+                status.write(f"▶ {agent_name}")
+            try:
                 orch.run_analysis(state, on_step)
-                status.update(label=f"Done · {llm.calls} LLM calls", state="complete", expanded=False)
+            except Exception:
+                status.update(label="Stopped: an agent hit an error", state="error", expanded=False)
+                raise
+            status.update(label=f"Done · {llm.calls} LLM calls · {llm.label}", state="complete", expanded=False)
             ss["state"] = state
         except (LLMError, ValueError) as e:
             st.error(str(e))
