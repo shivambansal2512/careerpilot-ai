@@ -56,7 +56,9 @@ with st.sidebar:
             llm = ss["llm"]
         else:
             ss["llm"], ss["llm_sig"] = llm, sig
-        st.success(f"LLM: {llm.label}")
+    llm_box = st.empty()  # filled below; refreshed after a run in case the model fell back
+    if llm is not None:
+        llm_box.success(f"LLM: {llm.label}")
     adz_id, adz_key = (SECRETS.get("ADZUNA_APP_ID") if SECRETS else None), (SECRETS.get("ADZUNA_APP_KEY") if SECRETS else None)
     st.caption("Live job postings: " + ("**on** (Adzuna API)" if adz_id and adz_key else
                                          "off — market agent uses LLM knowledge + curated baseline"))
@@ -85,7 +87,7 @@ with st.form("profile_form"):
         year = a.selectbox("Current year", ["1st year", "2nd year", "3rd year", "4th year", "Graduate"], index=2)
         hours = b.slider("Study hours / week", 4, 30, 10)
         location = st.text_input("Preferred job location (optional)", placeholder="e.g. Bengaluru")
-    submitted = st.form_submit_button("Run the agents", type="primary", use_container_width=True)
+    submitted = st.form_submit_button("Run the agents", type="primary", width="stretch")
 
 if submitted:
     role = custom_role.strip() if role_choice.startswith("Other") else role_choice
@@ -112,6 +114,7 @@ if submitted:
                 status.update(label="Stopped: an agent hit an error", state="error", expanded=False)
                 raise
             status.update(label=f"Done · {llm.calls} LLM calls · {llm.label}", state="complete", expanded=False)
+            llm_box.success(f"LLM: {llm.label}")
             ss["state"] = state
         except (LLMError, ValueError) as e:
             st.error(str(e))
@@ -148,11 +151,11 @@ if view == "Skill gap":
     df = pd.DataFrame(gap["rows"])
     df["status"] = df["status"].map({"have": "✅ have", "partial": "🟡 partial", "missing": "❌ missing"})
     st.dataframe(df[["skill", "importance", "status", "covered_by", "your_level", "priority", "reason"]],
-                 hide_index=True, use_container_width=True,
+                 hide_index=True, width="stretch",
                  column_config={"importance": st.column_config.ProgressColumn("importance", min_value=0, max_value=100, format="%d")})
     with st.expander("Your profile as the Profile Analyzer read it"):
         st.write(prof.get("summary", ""))
-        st.dataframe(pd.DataFrame(prof["skills"]), hide_index=True, use_container_width=True)
+        st.dataframe(pd.DataFrame(prof["skills"]), hide_index=True, width="stretch")
         if prof.get("projects"):
             st.write("**Projects:** " + "; ".join(p.get("name", "") for p in prof["projects"]))
 
@@ -163,7 +166,7 @@ if view == "Job market":
         st.write(market["role_summary"])
     mdf = pd.DataFrame(market["skills"])
     st.bar_chart(mdf.set_index("name")["importance"], horizontal=True, height=420)
-    st.dataframe(mdf[["name", "importance", "category", "why"]], hide_index=True, use_container_width=True)
+    st.dataframe(mdf[["name", "importance", "category", "why"]], hide_index=True, width="stretch")
     if market.get("postings"):
         st.subheader("Sample of the live postings analysed")
         for p in market["postings"]:
@@ -269,6 +272,6 @@ if view == "Agent trace":
         st.markdown(f"🔀 **Orchestrator:** {d}")
     tdf = pd.DataFrame(state["trace"])
     st.dataframe(tdf[["agent", "action", "tool", "llm_calls", "seconds", "status", "detail"]],
-                 hide_index=True, use_container_width=True)
+                 hide_index=True, width="stretch")
     if llm is not None:
         st.caption(f"LLM calls this session: {llm.calls}" + (f" · tokens: {llm.total_tokens}" if llm.total_tokens else ""))

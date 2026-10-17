@@ -100,11 +100,11 @@ class LLM:
                         self.model = self._fallbacks.pop(0)  # retired or overloaded model: try the next one
                         continue
                 self._raise(e)
+        usage = getattr(resp, "usage", None)
         with self._lock:
             self.calls += 1
-        usage = getattr(resp, "usage", None)
-        if usage is not None and getattr(usage, "total_tokens", None):
-            self.total_tokens += usage.total_tokens
+            if usage is not None and getattr(usage, "total_tokens", None):
+                self.total_tokens += usage.total_tokens
         return resp.choices[0].message.content or ""
 
     @staticmethod

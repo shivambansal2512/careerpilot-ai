@@ -9,9 +9,16 @@ def extract_resume_text(file_bytes: bytes, filename: str, max_chars: int = 12000
     name = (filename or "").lower()
     if name.endswith(".pdf"):
         from pypdf import PdfReader
+        from pypdf.errors import PyPdfError
 
-        reader = PdfReader(io.BytesIO(file_bytes))
-        text = "\n".join((page.extract_text() or "") for page in reader.pages)
+        try:
+            reader = PdfReader(io.BytesIO(file_bytes))
+            text = "\n".join((page.extract_text() or "") for page in reader.pages)
+        except PyPdfError as e:
+            raise ValueError(
+                "This PDF could not be read (it may be damaged or password-protected). "
+                "Try another file or type your skills in the box instead."
+            ) from e
     else:
         text = file_bytes.decode("utf-8", errors="ignore")
     text = re.sub(r"[ \t]+", " ", text)

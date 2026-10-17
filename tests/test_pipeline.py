@@ -6,7 +6,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from llm import LLMError, extract_json  # noqa: E402
+from llm import extract_json  # noqa: E402
 from orchestrator import Orchestrator  # noqa: E402
 from tests.mock_llm import MockLLM  # noqa: E402
 from tools.job_search import skill_frequency  # noqa: E402
@@ -109,3 +109,24 @@ def test_extract_json_and_frequency():
              {"title": "SDE", "description": "Python, SQL, Docker"}]
     f = skill_frequency(["SQL", "Docker", "Java"], posts, {"Java": ["spring boot"]})
     assert f == {"SQL": 100, "Docker": 50, "Java": 50}
+
+
+def test_corrupt_pdf_gives_friendly_error():
+    from tools.resume_parser import extract_resume_text
+
+    with pytest.raises(ValueError, match="could not be read"):
+        extract_resume_text(b"%PDF-1.4 not really a pdf", "cv.pdf")
+
+
+def test_covered_by_list_is_accepted():
+    from agents.skill_gap import SkillGapAgent
+
+    class ListLLM(MockLLM):
+        def _skill_gap(self, s, u):
+            return {"rows": [{"skill": "SQL", "status": "have", "covered_by": ["MySQL", "Java"], "reason": "x"}],
+                    "advice": "a"}
+
+    state = {"profile": {"skills": [{"name": "MySQL", "level": "advanced"}, {"name": "Java", "level": "beginner"}]},
+             "market": {"role": "r", "skills": [{"name": "SQL", "importance": 80, "why": ""}]}}
+    row = SkillGapAgent(ListLLM()).run(state)["rows"][0]
+    assert row["covered_by"] == "MySQL, Java" and row["your_level"] == "advanced"

@@ -51,6 +51,8 @@ class SkillGapAgent(Agent):
                 r = by_name.get(s["name"].lower(), {})
                 status = r.get("status") if r.get("status") in ("have", "partial", "missing") else "missing"
                 covered = r.get("covered_by")
+                if isinstance(covered, list):  # models sometimes return a list instead of a string
+                    covered = ", ".join(str(c) for c in covered if c) or None
                 lvl = None
                 if covered:
                     # take the best level among the covering skills
